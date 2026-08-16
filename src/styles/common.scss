@@ -1,0 +1,39 @@
+/* src/styles/common.scss */
+
+// ========== flex 布局快捷类 ==========
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+// ========== 文字溢出省略 ==========
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ========== 清除浮动 ==========
+.clearfix::after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
+// ========== 页面容器 ==========
+.page-container {
+  height: 100%;
+  padding: 20px;
+  overflow: auto;
+}

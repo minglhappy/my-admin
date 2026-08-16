@@ -1,0 +1,41 @@
+/* src/styles/reset.scss */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box; // 让 padding 和 border 算在宽高内，不再撑大盒子
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  color: #333;
+  font-size: 14px;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+img {
+  display: block; // 去掉图片底部的默认间隙
+}
+
+input,
+button,
+textarea {
+  outline: none;
+  border: none;
+  font-family: inherit;
+}
