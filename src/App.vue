@@ -1,15 +1,17 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { onMounted } from 'vue';
+import { useGlobalStore } from '@/stores/modules/global';
+
+const globalStore = useGlobalStore();
+
+onMounted(() => {
+  // 刷新后从 localStorage 恢复的主题里取出 isDark,重新挂上 class
+  if (globalStore.themeConfig.isDark) {
+    document.documentElement.classList.add('dark');
+  }
+});
+</script>
 
 <template>
-  <!-- <h1>Hello, World! MyAdmin is coming soon!</h1>
-  <p class="flex-center primary-text">阶段4测试</p> -->
-
   <router-view />
 </template>
-
-<!-- <style lang="scss" scoped>
-.primary-text {
-  color: $primary-color;
-  font-size: 20px;
-}
-</style> -->

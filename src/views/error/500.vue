@@ -1,16 +1,7 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import ErrorMessage from '@/components/ErrorMessage/index.vue';
+</script>
 
 <template>
-  <div class="error-container flex-center">
-    <h1>500</h1>
-    <p>服务器内部错误</p>
-  </div>
+  <ErrorMessage code="500" message="抱歉，服务器内部错误~" />
 </template>
-
-<style lang="scss" scoped>
-.error-container {
-  width: 100%;
-  height: 100%;
-  flex-direction: column;
-}
-</style>

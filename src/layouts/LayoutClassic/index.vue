@@ -89,6 +89,7 @@ const logout = () => {
           </el-breadcrumb>
         </div>
         <div class="header-right">
+          <SwitchDark />
           <el-dropdown @command="handleCommand">
             <span class="user-info">
               <el-avatar :size="30">{{ userStore.userInfo.username?.charAt(0) }}</el-avatar>
@@ -206,5 +207,9 @@ const logout = () => {
   height: 30px;
   color: $text-color-secondary;
   font-size: 12px;
+}
+
+html.dark .layout-main {
+  background-color: #141414;
 }
 </style>

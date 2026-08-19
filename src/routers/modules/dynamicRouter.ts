@@ -23,5 +23,10 @@ export async function initDynamicRouter() {
       name: 'home',
       meta: { title: '首页', icon: 'HomeFilled' },
     },
+    {
+      path: '/proTable',
+      name: 'proTable',
+      meta: { title: 'Protable演示~', icon: 'Grid' },
+    },
   ]);
 }

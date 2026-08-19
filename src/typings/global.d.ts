@@ -14,3 +14,5 @@ declare namespace Menu {
     children?: MenuOptions[];
   }
 }
+
+declare module 'virtual:svg-icons-register';

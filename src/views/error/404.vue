@@ -1,16 +1,7 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import ErrorMessage from '@/components/ErrorMessage/index.vue';
+</script>
 
 <template>
-  <div class="error-container flex-center">
-    <h1>404</h1>
-    <p>页面未找到</p>
-  </div>
+  <ErrorMessage code="404" message="抱歉，你访问的页面不存在" />
 </template>
-
-<style lang="scss" scoped>
-.error-container {
-  width: 100%;
-  height: 100%;
-  flex-direction: column;
-}
-</style>

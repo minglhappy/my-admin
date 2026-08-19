@@ -10,6 +10,10 @@ import '@/styles/reset.scss';
 import '@/styles/common.scss';
 import '@/styles/element.scss';
 
+import 'virtual:svg-icons-register';
+import SvgIcon from '@/components/SvgIcon/index.vue';
+import SwitchDark from '@/components/SwitchDark/index.vue';
+
 const app = createApp(App);
 
 app.use(ElementPlus);
@@ -20,5 +24,8 @@ app.use(pinia);
 for (const [key, component] of Object.entries(Icons)) {
   app.component(key, component);
 }
+
+app.component('SvgIcon', SvgIcon);
+app.component('SwitchDark', SwitchDark);
 
 app.mount('#app');
