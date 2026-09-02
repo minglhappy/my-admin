@@ -14,6 +14,8 @@ import 'virtual:svg-icons-register';
 import SvgIcon from '@/components/SvgIcon/index.vue';
 import SwitchDark from '@/components/SwitchDark/index.vue';
 
+import { setupDirectives } from '@/directives';
+
 const app = createApp(App);
 
 app.use(ElementPlus);
@@ -27,5 +29,7 @@ for (const [key, component] of Object.entries(Icons)) {
 
 app.component('SvgIcon', SvgIcon);
 app.component('SwitchDark', SwitchDark);
+
+setupDirectives(app);
 
 app.mount('#app');
