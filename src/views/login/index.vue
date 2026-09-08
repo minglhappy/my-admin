@@ -5,6 +5,10 @@ import { ElMessage } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import { useUserStore } from '@/stores/modules/user';
 import { HOME_URL } from '@/config';
+import { loginApi } from '@/api/modules/login';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -20,8 +24,8 @@ const loginForm = reactive({
 
 /** 校验规则 */
 const loginRules: FormRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  username: [{ required: true, message: t('login.usernameRequired'), trigger: 'blur' }],
+  password: [{ required: true, message: t('login.passwordRequired'), trigger: 'blur' }],
 };
 
 /** 登录按钮 loading 状态 */
@@ -34,12 +38,16 @@ const handleLogin = () => {
     if (!valid) return;
     loading.value = true;
     // TODO: 阶段 11 接入 Mock 接口后，替换为真实的 loginApi 调用
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    // ★ 核心：写入 token（持久化插件会自动同步到 localStorage）
-    userStore.setToken('test-token-123');
+    // await new Promise((resolve) => setTimeout(resolve, 500));
+    // // ★ 核心：写入 token（持久化插件会自动同步到 localStorage）
+    // userStore.setToken('test-token-123');
+
+    const res = await loginApi(loginForm);
+    userStore.setToken(res.data.access_token);
+
     userStore.setUserInfo({ id: 1, username: loginForm.username, avatar: '' });
     loading.value = false;
-    ElMessage.success('登录成功！');
+    ElMessage.success(t('login.success'));
     router.push(HOME_URL);
   });
 };
@@ -51,13 +59,13 @@ const handleLogin = () => {
       <h1 class="login-title">MyAdmin</h1>
       <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" size="large">
         <el-form-item prop="username">
-          <el-input v-model="loginForm.username" placeholder="用户名" :prefix-icon="'User'" />
+          <el-input v-model="loginForm.username" :placeholder="t('login.usernamePlaceholder')" :prefix-icon="'User'" />
         </el-form-item>
         <el-form-item prop="password">
-          <el-input v-model="loginForm.password" type="password" placeholder="密码" :prefix-icon="'Lock'" show-password />
+          <el-input v-model="loginForm.password" type="password" :placeholder="t('login.passwordPlaceholder')" :prefix-icon="'Lock'" show-password />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" class="login-btn" :loading="loading" @click="handleLogin"> 登 录 </el-button>
+          <el-button type="primary" class="login-btn" :loading="loading" @click="handleLogin"> {{ t('login.button') }} </el-button>
         </el-form-item>
       </el-form>
     </div>

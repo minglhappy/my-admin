@@ -3,6 +3,7 @@ import { resolve } from 'path';
 import { createVitePlugins } from './build/plugins';
 import { createProxy } from './build/proxy';
 import { wrapperEnv } from './build/getEnv';
+import { mockServerPlugin } from './build/mockServer';
 
 export default defineConfig(({ mode }): UserConfig => {
   // 加载 .env.[mode] 环境变量
@@ -39,7 +40,7 @@ export default defineConfig(({ mode }): UserConfig => {
     },
 
     // 插件
-    plugins: createVitePlugins(viteEnv),
+    plugins: [...createVitePlugins(viteEnv), mockServerPlugin()],
 
     // 构建配置
     build: {

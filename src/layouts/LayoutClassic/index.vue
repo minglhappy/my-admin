@@ -6,6 +6,17 @@ import { useTabsStore } from '@/stores/modules/tabs';
 import { useKeepAliveStore } from '@/stores/modules/keepAlive';
 import { useUserStore } from '@/stores/modules/user';
 import { HOME_URL, LOGIN_URL } from '@/config';
+import { resetRouter } from '@/routers';
+import i18n from '@/languages';
+import { useI18n } from 'vue-i18n';
+import { useGlobalStore } from '@/stores/modules/global';
+
+const { t } = useI18n();
+const globalStore = useGlobalStore();
+const switchLanguage = (lang: string) => {
+  globalStore.setLanguage(lang);
+  i18n.global.locale.value = lang;
+};
 
 const route = useRoute();
 const router = useRouter();
@@ -57,6 +68,9 @@ const handleCommand = (command: string) => {
 /** 退出登录 */
 const logout = () => {
   userStore.loginOut();
+  resetRouter();
+  tabsStore.$reset();
+  keepAliveStore.setKeepAliveName([]);
   router.replace(LOGIN_URL);
 };
 </script>
@@ -89,6 +103,16 @@ const logout = () => {
           </el-breadcrumb>
         </div>
         <div class="header-right">
+          <el-dropdown @command="switchLanguage">
+            <span class="lang-btn">{{ globalStore.language === 'zh' ? '中文' : 'English' }}</span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="zh">中文</el-dropdown-item>
+                <el-dropdown-item command="en">English</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+
           <SwitchDark />
           <el-dropdown @command="handleCommand">
             <span class="user-info">
@@ -97,7 +121,7 @@ const logout = () => {
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout"> 退出登录 </el-dropdown-item>
+                <el-dropdown-item command="logout"> {{ t('layout.logout') }} </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -167,6 +191,12 @@ const logout = () => {
   border-bottom: 1px solid $border-color-lighter;
 
   .header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+
+  .header-right {
     display: flex;
     align-items: center;
     gap: 15px;

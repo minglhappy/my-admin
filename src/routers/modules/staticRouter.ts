@@ -27,18 +27,18 @@ export const staticRouter: RouteRecordRaw[] = [
         meta: { title: '首页', icon: 'HomeFilled' },
       },
 
-      {
-        path: '/proTable',
-        name: 'proTable',
-        component: () => import('@/views/proTable/index.vue'),
-        meta: { title: 'ProTable演示', icon: 'Grid' },
-      },
-      {
-        path: '/directives',
-        name: 'directives',
-        component: () => import('@/views/directives/index.vue'),
-        meta: { title: '自定义指令演示', icon: 'MagicStick' },
-      },
+      // {
+      //   path: '/proTable',
+      //   name: 'proTable',
+      //   component: () => import('@/views/proTable/index.vue'),
+      //   meta: { title: 'ProTable演示', icon: 'Grid' },
+      // },
+      // {
+      //   path: '/directives',
+      //   name: 'directives',
+      //   component: () => import('@/views/directives/index.vue'),
+      //   meta: { title: '自定义指令演示', icon: 'MagicStick' },
+      // },
     ],
   },
 ];

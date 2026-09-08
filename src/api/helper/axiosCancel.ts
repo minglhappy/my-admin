@@ -1,5 +1,5 @@
 // src/api/helper/axiosCancel.ts
-import { CustomAxiosRequestConfig } from '@/api/index';
+import type { CustomAxiosRequestConfig } from '@/api/index';
 
 /** 存储每个请求的标识和取消函数 */
 export class AxiosCanceler {

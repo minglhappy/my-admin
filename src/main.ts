@@ -16,9 +16,12 @@ import SwitchDark from '@/components/SwitchDark/index.vue';
 
 import { setupDirectives } from '@/directives';
 
+import i18n from '@/languages';
+
 const app = createApp(App);
 
 app.use(ElementPlus);
+app.use(i18n);
 
 app.use(router);
 app.use(pinia);

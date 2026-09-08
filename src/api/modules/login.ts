@@ -14,5 +14,5 @@ export interface LoginResult {
 
 /** 登录接口 */
 export function loginApi(params: LoginParams) {
-  return http.post<LoginResult>('/login', params);
+  return http.post<LoginResult>('/geeker/login', params);
 }

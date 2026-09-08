@@ -60,7 +60,8 @@ router.beforeEach(async (to) => {
 
   if (authStore.authMenuList.length === 0) {
     // 初始化动态路由
-    await initDynamicRouter();
+    // await initDynamicRouter();
+    await initDynamicRouter(router);
     return { ...to, replace: true }; // 重新导航到当前路由，确保动态路由生效
   }
 
@@ -76,3 +77,14 @@ router.afterEach((to) => {
     tabsStore.addTabs({ path: to.path, title: (to.meta.title as string) || '页面' });
   }
 });
+
+export function resetRouter() {
+  const authStore = useAuthStore();
+  authStore.flatMenuList.forEach((route) => {
+    if (route.name && router.hasRoute(route.name as string)) {
+      router.removeRoute(route.name as string);
+    }
+  });
+  authStore.setFlatMenuList([]);
+  authStore.setAuthMenuList([]);
+}
