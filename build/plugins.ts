@@ -1,12 +1,12 @@
 import vue from '@vitejs/plugin-vue';
-import { PluginOption } from 'vite';
+// import { PluginOption } from 'vite';
 import { createHtmlPlugin } from 'vite-plugin-html';
 import { createSvgIconsPlugin } from 'vite-plugin-svg-icons';
 import { VitePWA } from 'vite-plugin-pwa';
 import { visualizer } from 'rollup-plugin-visualizer';
 import viteCompression from 'vite-plugin-compression';
 import { resolve } from 'path';
-
+import type { Plugin, PluginOption } from 'vite';
 /**
  * 创建 Vite 插件数组
  * @param viteEnv - 从 .env 解析后的环境变量
@@ -33,7 +33,7 @@ export function createVitePlugins(viteEnv: ViteEnv): PluginOption[] {
   // 打包压缩（gzip / brotli）
   if (viteEnv.VITE_BUILD_COMPRESS && viteEnv.VITE_BUILD_COMPRESS !== 'none') {
     const compressList = viteEnv.VITE_BUILD_COMPRESS.split(',');
-    compressList.forEach((compress) => {
+    compressList.forEach((compress: string) => {
       plugins.push(
         viteCompression({
           algorithm: compress as 'gzip' | 'brotliCompress',
@@ -67,5 +67,21 @@ export function createVitePlugins(viteEnv: ViteEnv): PluginOption[] {
     );
   }
 
+  // 生产剔除 console（Vite 8 移除了 build.esbuild，用插件实现）
+  plugins.push(dropConsolePlugin(viteEnv.VITE_DROP_CONSOLE));
+
   return plugins;
+}
+
+/** 生产环境剔除 console.log 和 debugger（Vite 8 已移除 build.esbuild 配置，改用插件实现） */
+function dropConsolePlugin(enabled: boolean): Plugin {
+  return {
+    name: 'drop-console',
+    apply: 'build', // 只在构建时生效，dev 保留 console
+    transform(code, id) {
+      if (!enabled || id.includes('node_modules')) return;
+      // 按行移除整条 console.log / debugger 语句
+      return code.replace(/^\s*console\.log\(.*\);?\s*$/gm, '').replace(/^\s*debugger;?\s*$/gm, '');
+    },
+  };
 }

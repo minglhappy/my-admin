@@ -1,4 +1,5 @@
-import { defineConfig, loadEnv, UserConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
+import type { UserConfig } from 'vite';
 import { resolve } from 'path';
 import { createVitePlugins } from './build/plugins';
 import { createProxy } from './build/proxy';
@@ -44,10 +45,6 @@ export default defineConfig(({ mode }): UserConfig => {
 
     // 构建配置
     build: {
-      // 根据配置决定是否删除 console 和 debugger
-      esbuild: {
-        pure: viteEnv.VITE_DROP_CONSOLE ? ['console.log', 'debugger'] : [],
-      },
       // 分包策略
       rollupOptions: {
         output: {
