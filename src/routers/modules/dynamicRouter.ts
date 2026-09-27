@@ -7,6 +7,8 @@ import { getMenuListApi } from '@/api/modules/menu';
 const modules = import.meta.glob('@/views/**/**.vue');
 
 export function transformMenuToRoute(menus: Menu.MenuOptions[]): RouteRecordRaw[] {
+  console.log(Object.keys(modules).filter((k) => k.includes('virtual')));
+  console.log(modules['/src/views/proTable/virtualTable.vue']);
   return menus.map((menu) => ({
     path: menu.path,
     name: menu.name,

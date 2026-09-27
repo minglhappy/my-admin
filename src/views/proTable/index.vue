@@ -31,6 +31,26 @@ const mockData = [
   { id: 3, username: 'lisi', nickname: '李四', status: 0, createTime: '2026-08-03 14:20:00' },
 ];
 
+// const props = withDefaults(defineProps<ProTableProps>(), {
+//     // ...默认值不变
+//   });
+
+//   // ─── 虚拟模式列配置（★ 移到这里，props 之后）───
+// const virtualColumns = computed(() =>
+//   props.columns.map((col) => ({
+//     key: col.prop,
+//     dataKey: col.prop,
+//     title: col.label,
+//     width: typeof col.width === 'number' ? col.width : 150,
+//     align: col.align || 'left',
+//   }))
+// );
+
+// const virtualTableWidth = computed(() =>
+//   virtualColumns.value.reduce((sum, col) => sum + (typeof col.width === 'number' ?
+//   col.width : 150), 0)
+// );
+
 /** 请求函数：模拟后端过滤 + 分页 */
 const requestApi = async (params: any) => {
   const filtered = mockData.filter((item) => {

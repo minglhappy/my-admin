@@ -26,6 +26,12 @@ export const staticRouter: RouteRecordRaw[] = [
         component: () => import('@/views/home/index.vue'),
         meta: { title: '首页', icon: 'HomeFilled' },
       },
+      {
+        path: '/proTable/virtual',
+        name: 'virtualTable',
+        component: () => import('@/views/proTable/virtualTable.vue'),
+        meta: { title: '虚拟滚动演示', icon: 'DataLine' },
+      },
 
       // {
       //   path: '/proTable',

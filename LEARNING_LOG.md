@@ -3,6 +3,7 @@
 > 从 0 到 1 构建 Vue3 + TypeScript 后台管理系统（复刻 Geeker-Admin）的完整学习笔记
 > 学习模式：**你写 → AI 审 → 你改**（先尝试自己写代码，再由 AI review 纠错）
 > 开始时间：2026-08-05 ｜ 技术栈：Vue 3.5 + TypeScript + Vite + Pinia + Element Plus
+> 完成时间：2026-09-20 ｜ 共 12 阶段 + 30 个踩坑记录，项目已构建部署验证
 
 ---
 
@@ -20,9 +21,11 @@
 - [Git 版本控制实战](#git-版本控制实战)
 - [阶段 9：全局组件开发](#阶段-9全局组件开发)
 - [阶段 10：自定义指令与 Hooks](#阶段-10自定义指令与-hooks)
+- [阶段 11：国际化与 Mock 数据（动态路由收官）](#阶段-11国际化与-mock-数据动态路由收官)
+- [阶段 12：构建优化与部署](#阶段-12构建优化与部署)
 - [踩坑记录全集](#踩坑记录全集)
 - [核心机制深度问答](#核心机制深度问答)
-- [待完成阶段](#待完成阶段)
+- [项目收官与进阶建议](#项目收官与进阶建议)
 
 ---
 
@@ -59,8 +62,10 @@ my-admin/
 ├─ build/                     # Vite 配置模块
 │  ├─ getEnv.ts               # 环境变量类型转换
 │  ├─ proxy.ts                # 跨域代理
-│  ├─ plugins.ts              # 插件注册
+│  ├─ plugins.ts              # 插件注册（含 dropConsolePlugin）
+│  ├─ mockServer.ts           # 本地 Mock 插件
 │  └─ vite-env.d.ts           # ViteEnv 类型声明
+├─ mock/                      # Mock 处理器（MockHandler 数组格式）
 ├─ index.html                 # HTML 入口（Vite 设计：HTML 驱动 JS）
 ├─ vite.config.ts             # Vite 总配置
 ├─ src/
@@ -77,13 +82,14 @@ my-admin/
 │  ├─ directives/             # 7 个自定义指令
 │  ├─ enums/                  # HTTP 枚举
 │  ├─ hooks/                  # 8 个组合式函数
+│  ├─ languages/              # i18n 中英文语言包
 │  ├─ layouts/                # LayoutClassic 布局
 │  ├─ routers/                # 静态路由 + 动态路由 + 守卫
 │  ├─ stores/                 # Pinia（user/auth/global/tabs/keepAlive）
 │  ├─ styles/                 # reset/var/common/element/element-dark
 │  ├─ typings/                # 全局类型声明
 │  ├─ utils/                  # 工具函数
-│  ├─ views/                  # 页面（login/home/error/proTable/directives）
+│  ├─ views/                  # 页面（login/home/error/proTable/directives/system）
 │  ├─ App.vue                 # 根组件（router-view + 暗黑恢复）
 │  └─ main.ts                 # 入口（注册顺序：ElementPlus → router → pinia）
 ```
@@ -95,6 +101,8 @@ my-admin/
 | 1    | feat: 完成项目脚手架到登录布局的开发（阶段1-8）                          |
 | 2    | feat: 阶段9 完成全局组件开发（SvgIcon/SwitchDark/ErrorMessage/ProTable） |
 | 3    | feat: 阶段10 完成自定义指令与Hooks开发                                   |
+| 4    | feat: 阶段11 完成国际化与Mock数据及完整动态路由体系                      |
+| 5    | feat: 阶段12 完成构建优化与部署配置                                      |
 
 ---
 
@@ -497,6 +505,81 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 
 ---
 
+## 阶段 11：国际化与 Mock 数据（动态路由收官）
+
+### 目标
+
+本地 Mock 服务器 + **真正的动态路由** + vue-i18n 中英文切换。
+
+### Mock 服务器（build/mockServer.ts + mock/*.js）
+
+- 插件：vite-plugin-mock-server，`urlPrefixes: ["/geeker/"]`
+- **mock 文件必须是 MockHandler 数组格式**（`{ pattern, method, handle }`）——导出裸函数会被插件当"工厂函数"在加载时无参调用（坑 21）
+- 插件默认不解析请求体 → 自定义 JSON body 解析中间件；默认文件后缀 `.mock.js` → 配 `mockJsSuffix: ".js"`
+- 依赖 esbuild 需手动安装（Vite 8 不再传递依赖，坑 19）
+
+### 完整动态路由链路
+
+```
+守卫 → initDynamicRouter(router)
+  → getMenuListApi() 拿菜单 JSON（component 是字符串）
+  → import.meta.glob 映射表把 "proTable/index" 翻译成组件
+  → addRoute('layout', route)（hasRoute 防御重复注册）
+  → setAuthMenuList（侧边栏渲染）+ setFlatMenuList（★只记真正动态添加的！）
+```
+
+- **"不注册=不存在"**：业务页从 staticRouter 移除 → 未登录访问 /system/user 直接 404
+- **flatMenuList 只记真正 addRoute 的路由**——否则 resetRouter 误删静态 home（坑 24）
+
+### 国际化（vue-i18n）
+
+- `createI18n({ legacy: false })` + `messages: { zh, en }`，语言包按模块嵌套（login.xxx / layout.xxx）
+- 切换 = `setLanguage`（持久化）+ `i18n.global.locale.value`（立即生效）——两步缺一不可
+- `t()` 找不到 key 时**返回 key 本身**（"layout.logout" 字样的来源，坑 26）
+- Element 组件语言：App.vue 的 `el-config-provider :locale`
+- 刷新恢复：languages/index.ts 直接读 localStorage（模块加载时 pinia 未激活）
+
+### logout 五件套清理
+
+`loginOut` + `resetRouter` + `tabsStore.$reset()` + `keepAlive 清空` + `回登录页`——缺一个就是坑（24/27）。
+
+---
+
+## 阶段 12：构建优化与部署
+
+### 构建脚本
+
+`build:dev/test/pro` = `vue-tsc -b && vite build --mode xxx`（类型检查不过就不打包；`--mode` 决定加载哪份 .env）
+
+### Vite 8 / TS 6 时代适配（本阶段踩坑精华，见坑 29）
+
+- **build.esbuild 已移除** → console 剔除改用自定义 transform 插件（dropConsolePlugin，`apply: "build"`）
+- TS 6 `baseUrl` 废弃 → paths 写 `"./src/*"`
+- `erasableSyntaxOnly` 禁 enum → const 对象 + `as const`
+- `verbatimModuleSyntax` → 类型一律 `import type`
+- 第三方类型改名：`PersistedStateOptions` → `PersistenceOptions`、`paths` → `pick`（报错信息会提示新名字）
+
+### 产物优化
+
+- hash 文件名 = 缓存策略基础（内容变名字变，长缓存无风险）
+- gzip/brotli 预压缩（`VITE_BUILD_COMPRESS = gzip,brotli`）+ nginx `gzip_static`
+- visualizer 打包分析（`VITE_REPORT=true` → stats.html）
+- PWA：生产需 HTTPS；测试时注意 SW 缓存旧代码（无痕窗口最稳）
+
+### 部署（nginx + Docker）
+
+- dist 是纯静态文件，由 nginx 分发；**hash 路由无需 history fallback**
+- **Mock 只在 dev 存在**——生产必须真实后端，本地测试可用 nginx `return JSON` 临时模拟（坑 30）
+- 本地验证路径：WSL + Docker 挂载 dist 和 nginx.conf → 浏览器访问 → 云服务器
+- 常用命令：`nginx -t`（查语法）、`nginx -s reload`（热重载）、`docker logs`（看日志）
+
+### 验收
+
+- console.log 剔除验证（grep dist；"debugger" 匹配可能是库文案误报，埋点测试是决定性证据）
+- 部署后登录/菜单/页面全流程正常
+
+---
+
 ## 踩坑记录全集
 
 ### 坑 1：删了 style.css 但 main.ts 还在引用
@@ -605,6 +688,76 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 **报错**：`Expected "rgba" to be "rgb"`
 **解法**：`stylelint --fix` 自动转现代写法 `rgb(0 0 0 / 15%)`。
 
+### 坑 19：vite-plugin-mock-server 报 Cannot find package 'esbuild'
+
+**原因**：Vite 8（Rolldown 内核）不再传递依赖 esbuild，插件自己又没声明
+**解法**：`pnpm add -D esbuild`
+**经验**：报错路径在 `node_modules/.pnpm/某个插件/` 里 = 插件依赖缺失，手动补装即可。
+
+### 坑 20：pnpm 拦截依赖安装脚本（IGNORED_BUILDS 连环坑）
+
+**原因**：pnpm 10+ 安全机制——默认禁止所有 postinstall（防供应链投毒，呼应坑 17 的 pina 假包）
+**解法**：`pnpm-workspace.yaml` 里 `allowBuilds` 用**"包名: true" 映射格式**（pnpm 11 不是列表格式！）
+**教训**：配置文件不生效时，第一步是读文件内容，而不是再跑命令；小配置文件坏了就"全部删光重写"。
+
+### 坑 21：Mock 文件报 TypeError: reading 'body'
+
+**原因**：插件把函数导出当"工厂函数"在**加载时**无参调用；正确格式是 MockHandler 数组
+**解法**：`export default [{ pattern: '/geeker/xxx', method: 'POST', handle: (req, res) => {...} }]`
+
+### 坑 22：POST /geeker/login 404
+
+**原因**：① 插件默认找 `*.mock.js` 文件（需配 `mockJsSuffix: ".js"`）；② 插件默认不解析请求体（req.body 为 undefined）
+**解法**：配 `mockJsSuffix` + 自定义 JSON body 解析中间件（十几行的"攒数据 + JSON.parse"）
+
+### 坑 23：动态路由页面空白
+
+**原因**：拼 glob key 漏了斜杠——`/src/views${menu.component}.vue` → "/src/viewsproTable/..."
+**解法**：`/src/views/${menu.component}.vue`；调试时 `console.log(Object.keys(modules))` 对照真实 key
+
+### 坑 24：重新登录后进 404（最深的坑）
+
+**因果链**：flatMenuList 混入静态 home → resetRouter 误删它 → 再登录 push('/home/index') 匹配不到 → 兜底重定向 /404（发生在守卫**之前**）→ 守卫把 /404 当目标重新导航 → 渲染 404
+**解法**：flatMenuList 只记录**真正 addRoute** 的路由（addedRoutes）
+**教训**："记录名单 → 批量操作"模式必须保证名单与实际操作一致。
+
+### 坑 25：切换英文没反应
+
+**原因**：① `switchLangue` 里用了未导入的 `i18n`（ReferenceError）；② 模板 `@command="switchLanguage"` 与函数名 `switchLangue` 拼写不一致 → 静默无事
+**解法**：补 `import i18n` + 统一函数名
+**经验**："点击没反应"优先检查事件绑定名与函数名是否一致。
+
+### 坑 26：下拉菜单显示 "layout.logout" 字样
+
+**原因**：`{{ "layout.logout" }}` 是字符串字面量，不是翻译调用
+**解法**：`{{ t("layout.logout") }}`
+
+### 坑 27：退出再登录标签残留
+
+**原因**：logout 只清了 token 和动态路由，tabsStore/keepAlive 原封不动（同一应用会话不刷新页面）
+**解法**：`tabsStore.$reset()` + `keepAliveStore.setKeepAliveName([])`（$reset 是 Pinia 内置，恢复 state() 初始值）
+
+### 坑 28：vue-tsc 报 40+ 个 Cannot find module '@/...'
+
+**原因**：`@` 别名只配了 vite.config.ts，没配 tsconfig 的 paths（dev 不跑类型检查所以潜伏到 build 才爆）
+**解法**：tsconfig.app.json 加 `"paths": { "@/*": ["./src/*"] }`
+**教训**：别名、环境变量这类"全局配置"永远要问自己：还有哪份配置需要同步？
+
+### 坑 29：TS 6 / Vite 8 构建报错合集
+
+- `baseUrl` 已废弃（TS5101）→ 删掉，paths 值写 `"./src/*"`（TS5090 提示要加 ./ 前缀）
+- `erasableSyntaxOnly` 禁 enum（TS1294）→ enum 改 const 对象 + `as const`（注意对象内是冒号不是等号！TS1312）
+- `verbatimModuleSyntax` → 类型一律 `import type`（UserConfig、PluginOption、ViteEnv 的 d.ts 要进 include）
+- `build.esbuild` 已移除（TS2353）→ 自定义 dropConsolePlugin（transform 钩子按行删 console.log/debugger）
+- 类型改名：`PersistedStateOptions` → `PersistenceOptions`、`paths` → `pick`——报错信息会直接告诉你新名字
+
+### 坑 30：部署后无法登录 + debugger 搜索误报
+
+**登录失败根因**：Mock 是 Vite **开发插件**，只存在于 pnpm dev；生产构建的 dist 是纯静态文件，`.env.production` 里 `VITE_API_URL = https://mock.example.com/api` 是假地址 → 请求打到不存在的域名
+**解法**：VITE_API_URL 留空 + nginx `return JSON` 临时模拟（或跑独立 Mock 容器 + proxy_pass）
+**认知**：开发与生产的本质差异——Mock 是脚手架，生产必须有真实后端。
+**debugger 误报**：dist 里搜到 "debugger" 可能只是 Vue 库的警告文案；决定性验证 = 源码埋 `console.log("剔除测试")` 重建后搜索无输出。
+
 ---
 
 ## 核心机制深度问答
@@ -660,22 +813,31 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 
 ---
 
-## 待完成阶段
+## 项目收官与进阶建议
 
-### 阶段 11：国际化与 Mock 数据
+### 已完成能力清单（12 阶段全部收官）
 
-- vue-i18n 中英文切换（src/languages/）
-- 本地 Mock 服务器（build/mockServer.ts + mock/db.json）
-- 登录接口换成真实 loginApi 调用
-- **完整的动态路由机制**：getMenuList → transformMenuToRoutes → router.addRoute("layout", route)
-- logout 时 resetRouter（卸载动态路由，防换账号残留）
+| 领域     | 能力                                                                      |
+| -------- | ------------------------------------------------------------------------- |
+| 工程化   | husky + lint-staged + commitlint + ESLint 扁平配置 + Prettier + Stylelint |
+| 环境体系 | .env 多环境 + 代理 + wrapperEnv 类型转换                                  |
+| API 层   | RequestHttp 拦截器封装（token 注入/loading/请求去重/统一错误处理）        |
+| 权限路由 | 静态 + 动态（addRoute）+ 守卫 + resetRouter + "不注册=不存在"             |
+| 状态管理 | 5 个 store + persistedstate 持久化                                        |
+| UI       | 经典布局 + 登录 + 暗黑模式 + 中英文切换                                   |
+| 复用能力 | 7 个指令 + 8 个 Hooks + ProTable 配置化                                   |
+| 构建部署 | 多环境构建 + gzip/brotli + PWA + console 剔除 + nginx/Docker              |
 
-### 阶段 12：构建优化与部署
+### 进阶方向（按优先级）
 
-- `pnpm build:pro` vs `build:dev` 区别
-- gzip/brotli 压缩、打包分析（stats.html）、PWA
-- VITE_DROP_CONSOLE 生产剔除 console.log
-- postcss 配置
+1. **真实后端联调**：token 刷新机制、CORS、接口文档对接——最大空白
+2. **Git 协作**：分支模型、PR review、冲突解决、rebase
+3. **复杂业务组件**：虚拟滚动表格、复杂表单联动、文件上传（分片）、ECharts
+4. **测试**：Vitest 单元测试 + Playwright E2E
+5. **CI/CD**：GitHub Actions 自动构建部署（把"构建→上传→重启 nginx"自动化）
+6. **性能优化**：首屏分包、CDN、内存泄漏排查
+7. **安全**：XSS（v-html）、CSRF、token 存储方案
+8. **TS 进阶**：泛型约束、条件类型（写组件库时才真正用到）
 
 ---
 
@@ -702,4 +864,4 @@ localStorage.removeItem("user")  # 模拟退出
 
 ---
 
-_文档生成时间：2026-08-26 ｜ 项目路径：F:\frontend-program\vue\my-admin_
+_文档更新时间：2026-09-20 ｜ 项目路径：F:\frontend-program\vue\my-admin_

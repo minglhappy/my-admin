@@ -62,7 +62,10 @@ router.beforeEach(async (to) => {
     // 初始化动态路由
     // await initDynamicRouter();
     await initDynamicRouter(router);
-    return { ...to, replace: true }; // 重新导航到当前路由，确保动态路由生效
+    // ★ 刷新动态路由页时，初始导航先被兜底重定向到 /404（动态路由尚未注册）
+    //   redirectedFrom 记录着用户真正想去的地址——初始化完成后回那里
+    const target = to.redirectedFrom?.fullPath || to.fullPath;
+    return { path: target, replace: true }; // 重新导航到当前路由，确保动态路由生效
   }
 
   // 已登录，正常放行（动态路由后续阶段完善）

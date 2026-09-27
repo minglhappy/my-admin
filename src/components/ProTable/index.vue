@@ -7,16 +7,17 @@ export interface ColumnProps {
   fixed?: 'left' | 'right'; // 固定列
   align?: 'left' | 'center' | 'right'; // 对齐方式
   search?: {
-    // 配了 search 的列会出现在搜索表单
-    el?: 'input' | 'select'; // 控件类型
+    el?: 'input' | 'select';
     options?: { label: string; value: string | number }[];
+    // 动态选项函数（联动场景）：根据当前表单计算本列选项
+    optionsFn?: (form: Record<string, any>) => { label: string; value: string | number }[];
     defaultValue?: string | number;
   };
 }
 </script>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { ResultData } from '@/api/interface';
 
 interface ProTableProps {
@@ -30,24 +31,81 @@ interface ProTableProps {
   selection?: boolean;
   /** 行唯一键 */
   rowKey?: string;
+  /** 虚拟滚动模式（大数据量用） */
+  virtual?: boolean;
+  /** 虚拟模式表格高度 */
+  height?: number;
 }
 
 const props = withDefaults(defineProps<ProTableProps>(), {
   pagination: true,
   selection: false,
   rowKey: 'id',
+  virtual: false,
+  height: 500,
 });
 
 // ─── 搜索 ───
 const searchColumns = computed(() => props.columns.filter((col) => col.search));
 const searchForm = reactive<Record<string, any>>({});
 
+// 动态选项（联动机制）
+// 动态选项缓存：字段名->选项列表
+const dynamicOptions = reactive<Record<string, { label: string; value: string | number }[]>>({});
+
+// 1、重算所有的 optionsFn列的选项
+const refreshDynamicOptions = () => {
+  props.columns.forEach((col) => {
+    if (col.search?.optionsFn) {
+      dynamicOptions[col.prop] = col.search.optionsFn(searchForm);
+    }
+  });
+};
+
+// 2、通用规则：已选值不再新选项中--->自动清空；
+const clearInvalidValues = () => {
+  props.columns.forEach((col) => {
+    const opts = dynamicOptions[col.prop];
+    if (!opts) return;
+    const current = searchForm[col.prop];
+    if (current !== '' && current !== undefined && current !== null) {
+      if (!opts.some((o) => o.value === current)) {
+        searchForm[col.prop] = '';
+      }
+    }
+  });
+};
+
+// 3、监听表单变化->重算+清理
+watch(
+  searchForm,
+  () => {
+    refreshDynamicOptions();
+    clearInvalidValues();
+  },
+  { deep: true }
+);
+
+// ─── 虚拟模式列配置（★ 在 props 之后）───
+const virtualColumns = computed(() =>
+  props.columns.map((col) => ({
+    key: col.prop,
+    dataKey: col.prop,
+    title: col.label,
+    width: typeof col.width === 'number' ? col.width : 150,
+    align: col.align || 'right',
+  }))
+);
+
+// ─── 虚拟模式表格总宽（★ 列宽总和，el-table-v2 对百分比宽度支持差）───
+const virtualTableWidth = computed(() => virtualColumns.value.reduce((sum, col) => sum + (typeof col.width === 'number' ? col.width : 150), 0));
+
 onMounted(() => {
-  // 用 defaultValue 初始化搜索表单
   searchColumns.value.forEach((col) => {
     if (col.search?.defaultValue !== undefined) searchForm[col.prop] = col.search.defaultValue;
   });
   getTableList();
+  refreshDynamicOptions();
 });
 
 const handleSearch = () => {
@@ -92,21 +150,22 @@ const handlePageChange = () => {
   getTableList();
 };
 
-/** 暴露给父组件的方法（父组件通过 ref 调用） */
 defineExpose({
-  getTableList, // 手动刷新表格
-  selectedRows, // 当前选中的行
+  getTableList,
+  selectedRows,
 });
 </script>
 
 <template>
   <div class="pro-table">
-    <!-- ① 搜索表单：由 searchColumns 自动生成 -->
+    <!-- ① 搜索表单 -->
     <el-form v-if="searchColumns.length > 0" :inline="true" :model="searchForm" class="pro-table-search">
       <el-form-item v-for="col in searchColumns" :key="col.prop" :label="col.label">
         <el-input v-if="!col.search?.el || col.search.el === 'input'" v-model="searchForm[col.prop]" placeholder="请输入" clearable @keyup.enter="handleSearch" />
         <el-select v-else-if="col.search.el === 'select'" v-model="searchForm[col.prop]" placeholder="请选择" clearable>
-          <el-option v-for="opt in col.search?.options" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <!-- <el-option v-for="opt in col.search?.options" :key="opt.value" :label="opt.label"
+:value="opt.value" /> -->
+          <el-option v-for="opt in dynamicOptions[col.prop] || col.search?.options" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -115,19 +174,19 @@ defineExpose({
       </el-form-item>
     </el-form>
 
-    <!-- ② 表格：由 columns 自动生成 -->
-    <el-table v-loading="loading" :data="tableData" :row-key="rowKey" border stripe @selection-change="handleSelectionChange">
+    <!-- ② 虚拟滚动表格 -->
+    <el-table-v2 v-if="virtual" :columns="virtualColumns" :data="tableData" :width="virtualTableWidth" :height="height" fixed />
+
+    <!-- ② 普通表格 -->
+    <el-table v-else v-loading="loading" :data="tableData" :row-key="rowKey" border stripe @selection-change="handleSelectionChange">
       <el-table-column v-if="selection" type="selection" width="55" align="center" />
       <el-table-column v-for="col in columns" :key="col.prop" :prop="col.prop" :label="col.label" :width="col.width" :fixed="col.fixed" :align="col.align" show-overflow-tooltip>
-        <!-- 单元格：父组件可用 #column-字段名 插槽自定义，否则显示原值 -->
         <template #default="scope">
           <slot :name="`column-${col.prop}`" :row="scope.row" :index="scope.$index">
             <span>{{ scope.row[col.prop] }}</span>
           </slot>
         </template>
       </el-table-column>
-
-      <!-- 操作列：父组件用 #operation 插槽定义，没定义就不渲染 -->
       <el-table-column v-if="$slots.operation" label="操作" width="180" fixed="right" align="center">
         <template #default="scope">
           <slot name="operation" :row="scope.row" :index="scope.$index" />
@@ -155,6 +214,14 @@ defineExpose({
     padding: 20px;
     background-color: #fff;
     border-radius: 4px;
+
+    :deep(.el-select) {
+      width: 200px;
+    }
+
+    :deep(.el-input) {
+      width: 200px;
+    }
   }
 
   .el-table {
