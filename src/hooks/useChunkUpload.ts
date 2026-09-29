@@ -78,6 +78,7 @@ export function useChunkUpload(options: ChunkUploadOptions) {
           await uploadChunkApi(formData, index, file.name, sharedController!.signal);
           completedCount++;
           progress.value = Math.round((completedCount / totalChunks) * 100);
+          // progress.value = Math.round(completedCount);
 
           // formData.append('chunk', chunks[index]);        // 片内容（Blob）
           // formData.append('index', String(index));        // 第几片（服务端拼回时靠它排序）
