@@ -1,0 +1,44 @@
+name: CI
+
+  # ① 触发器：什么时候跑这条流水线
+  on:
+    push:
+      branches: [master]          # push 到 master 时
+    pull_request:
+      branches: [master]          # 有人提 PR 时
+
+  # ② 任务定义
+  jobs:
+    check:
+      runs-on: ubuntu-latest      # 跑在 GitHub 的 Ubuntu 虚拟机上
+
+      steps:
+        # 步骤 1：把代码拉到虚拟机上
+        - uses: actions/checkout@v4
+
+        # 步骤 2：装 pnpm（版本和你本地一致）
+        - uses: pnpm/action-setup@v4
+          with:
+            version: 11
+
+        # 步骤 3：装 Node + 开启 pnpm 依赖缓存（第二次跑会快很多）
+        - uses: actions/setup-node@v4
+          with:
+            node-version: 22
+            cache: pnpm
+
+        # 步骤 4：安装依赖（--frozen-lockfile = 严格按锁文件装，不允许漂移）
+        - run: pnpm install --frozen-lockfile
+
+        # 步骤 5-8：四道检查，任何一道失败流水线立刻红
+        - name: ESLint 检查
+          run: pnpm exec eslint ./src
+
+        - name: 类型检查
+          run: pnpm exec vue-tsc -b
+
+        - name: 单元测试
+          run: pnpm test
+
+        - name: 生产构建
+          run: pnpm build:pro
