@@ -30,8 +30,8 @@ const bigData = Array.from({ length: 100000 }, (_, i) => ({
 }));
 
 /** 模拟接口：一次性返回（演示虚拟滚动的渲染性能） */
-const requestApi = async (params: any) => {
-  const start = (params.pageNum - 1) * params.pageSize;
+const requestApi = async () => {
+  // const start = (params.pageNum - 1) * params.pageSize;
   return {
     code: 200,
     data: {

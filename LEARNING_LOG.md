@@ -758,6 +758,53 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 **认知**：开发与生产的本质差异——Mock 是脚手架，生产必须有真实后端。
 **debugger 误报**：dist 里搜到 "debugger" 可能只是 Vue 库的警告文案；决定性验证 = 源码埋 `console.log("剔除测试")` 重建后搜索无输出。
 
+### 坑 31：el-table-v2 有表头无数据 / 全空白
+
+**现象**：`'100%'` 字符串宽度 → 表头渲染但数据区空白；改数字宽度时把代码贴错文件 → 演示页 ReferenceError
+**解法**：宽度 = 列宽总和数字（el-table-v2 对百分比宽度支持差）；新建 .vue 文件后**重启 dev**（import.meta.glob 不收录新文件）
+**经验**：调试复杂问题用"裸组件对照实验"二分定位——绕过封装层直接测底层组件。
+
+### 坑 32：表单联动加 watch 后页面空白（TDZ 死区）
+
+**原因**：`watch(searchForm, ...)` 是**立即执行**的代码，写在 `searchForm` 声明之前 → `Cannot access 'searchForm' before initialization`
+**解法**：searchForm 声明放联动三件套之前
+**规则**：函数定义可以前置（懒执行），立即执行的代码（watch、reactive 初始化）必须声明在后。
+
+### 坑 33：分片上传 CanceledError（去重机制误杀）
+
+**原因**：去重 key = method+url+params+data；72 个分片 url 相同、FormData 序列化都是 `{}` → key 全相同 → 去重机制把并发分片当"重复请求"取消
+**解法**：`{ cancel: false }` 关闭该请求的去重（阶段 5 预留的逃生舱）
+**教训**：封装任何"默认行为"都必须留关闭口子——你永远不知道未来哪个场景需要绕过它。
+
+### 坑 34：check 接口 404
+
+**原因**：mock 文件模板字符串反引号开头、单引号结尾 → 整个模块解析失败，所有 handler 失效
+**解法**：修复语法；这类 404 **先看 dev 终端**（插件加载报错在终端，浏览器只有结果）
+
+### 坑 35：checkApi 三连错（典型排查链）
+
+- `not defined` → hook 里没解构（接口声明了变量没取出）
+- `not a function` → 演示页导入了但没传给 hook（值 undefined）
+- `object is not iterable` → 忘了解包 `res.data`（接口约定 `{code, data, msg}`）
+  **规律**："not a function" = 值是 undefined = 顺着数据流往回找"谁该给它赋值"。
+
+### 坑 36：刷新动态路由页 404
+
+**原因**：动态路由未注册 → 初始导航被兜底 `/:pathMatch(.*)*` 重定向到 /404（**发生在守卫之前**）→ 守卫把 /404 当目标重新导航
+**解法**：守卫里 `to.redirectedFrom?.fullPath || to.fullPath` 找回用户原本想去的地方
+
+### 坑 37：破坏性实验没变红（测试盲区）
+
+**原因**：bug 在"过程值"（每片后的进度），测试断言的却是"终值"——`progress.value = 100` 兜底赋值把中间错误掩盖了
+**解法**：过程快照用例（mock 里记录每片间的进度）
+**铁律**：写测试先问"错误会以什么形式出现？我的断言看得见它吗？"——断言粒度 = 测试质量。
+
+### 坑 38：并发下测试时序不确定
+
+**原因**：concurrency=3 + 瞬间完成的 mock → 3 个调用在第一批片完成前发出 → 快照拍到 0
+**解法**：进度用例设 `concurrency: 1`（一个用例只测一个变量；并发由专门用例测）
+**铁律**：异步测试的时序必须确定——隔离变量是测试设计的核心动作。
+
 ---
 
 ## 核心机制深度问答
@@ -811,6 +858,14 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 
 90% 场景靠 columns 配置解决；10% 特殊场景（状态列渲染成 tag、操作列按钮）靠插槽兜底。配置解决不了的用插槽，插槽名约定 `column-字段名`。
 
+### Q8：一次 abort() 能同时中断 3 个并发请求吗？
+
+**能。** AbortController 是**一对多广播**——3 个请求共享同一个 signal，`abort()` 一调全部同时收到取消通知。终止按钮干两件事：`flag`（管排队的片，循环条件拦截）+ `signal`（管在飞的片）。signal 一旦 abort 永久死亡，所以**每次上传 new 一个 controller**。粒度决定数量：全停共享一个，单停（取消某一片）才需要每请求一个。
+
+### Q9：为什么"测试全绿"不等于"代码没坏"？
+
+断言粒度决定测试质量：**终值断言**抓不住过程 bug（`progress=100` 的兜底赋值会掩盖中间错误）；**过程快照断言**才能抓住。写测试先问"错误以什么形式出现？断言看得见吗？"另外异步测试的时序必须确定——并发变量要用专门用例测、进度变量要降并发隔离。
+
 ---
 
 ## 项目收官与进阶建议
@@ -828,16 +883,31 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 | 复用能力 | 7 个指令 + 8 个 Hooks + ProTable 配置化                                   |
 | 构建部署 | 多环境构建 + gzip/brotli + PWA + console 剔除 + nginx/Docker              |
 
-### 进阶方向（按优先级）
+### ProTable 增强（已完成）
+
+| 特性     | 核心知识点                                                                        |
+| -------- | --------------------------------------------------------------------------------- |
+| 虚拟滚动 | DOM 与数据解耦；startIndex = scrollTop / rowHeight；薄适配层模式                  |
+| 表单联动 | optionsFn 函数式表达依赖；值失效自动清空（通用规则兜底）                          |
+| 分片上传 | File.slice 切片；Promise 池 worker 模式；cancel:false 逃生舱                      |
+| 断点续传 | check 接口问进度；待传列表游标；进度从已有片数起步                                |
+| 主动终止 | AbortController 一对多广播；flag 管排队 + signal 管在飞；粒度决定 controller 数量 |
+
+### 进阶路线（进行中）
+
+1. ✅ **进阶 1：单元测试（Vitest）**——useChunkUpload 6 用例（切片/进度/续传/终止/并发/过程快照）；断言粒度与异步时序两条铁律
+2. ⏳ **进阶 2：CI/CD**——GitHub Actions 自动 lint + test + build
+3. **进阶 3：多级菜单与页面缓存**——el-sub-menu 递归组件 + KeepAlive 落地
+4. **进阶 4：按钮权限闭环**——mock 权限接口 + 登录后拉取 + v-auth 全量挂载
+5. **进阶 5：ECharts 数据可视化**——dashboard 折线/柱状/饼图 + resize 自适应
+
+### 长期方向（按优先级）
 
 1. **真实后端联调**：token 刷新机制、CORS、接口文档对接——最大空白
 2. **Git 协作**：分支模型、PR review、冲突解决、rebase
-3. **复杂业务组件**：虚拟滚动表格、复杂表单联动、文件上传（分片）、ECharts
-4. **测试**：Vitest 单元测试 + Playwright E2E
-5. **CI/CD**：GitHub Actions 自动构建部署（把"构建→上传→重启 nginx"自动化）
-6. **性能优化**：首屏分包、CDN、内存泄漏排查
-7. **安全**：XSS（v-html）、CSRF、token 存储方案
-8. **TS 进阶**：泛型约束、条件类型（写组件库时才真正用到）
+3. **性能优化**：首屏分包、CDN、内存泄漏排查
+4. **安全**：XSS（v-html）、CSRF、token 存储方案
+5. **TS 进阶**：泛型约束、条件类型（写组件库时才真正用到）
 
 ---
 
@@ -864,4 +934,4 @@ localStorage.removeItem("user")  # 模拟退出
 
 ---
 
-_文档更新时间：2026-09-20 ｜ 项目路径：F:\frontend-program\vue\my-admin_
+_文档更新时间：2026-09-29 ｜ 项目路径：F:\frontend-program\vue\my-admin_

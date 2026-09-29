@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
+import type { ResultData } from '@/api/interface';
 
 /** 分片上传配置 */
 interface ChunkUploadOptions {
@@ -8,8 +9,9 @@ interface ChunkUploadOptions {
   /** 并发数（默认 3，同时最多几个片在传） */
   concurrency?: number;
   /** 上传单片的接口（FormData 形式） */
-  uploadChunkApi: (formData: FormData, index: number, filename: string) => Promise<any>;
-  checkApi: (filename: string) => Promise<number[]>;
+  uploadChunkApi: (formData: FormData, index: number, filename: string, signal?: AbortSignal) => Promise<any>;
+  // ★ checkApi 返回的是 ResultData 包装（实现里 res.data 解包），
+  checkApi: (filename: string) => Promise<ResultData<number[]>>;
   /** 合并接口 */
   mergeApi: (params: { filename: string; totalChunks: number }) => Promise<any>;
 }

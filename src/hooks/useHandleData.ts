@@ -14,7 +14,7 @@ export function useHandleData(deleteApi: (id: number | string) => Promise<any>, 
       await deleteApi(id);
       ElMessage.success('删除成功');
       refreshFn();
-    } catch (e) {
+    } catch {
       // 用户点了"取消"会走这里（confirm 被 reject），静默处理即可
     }
   };

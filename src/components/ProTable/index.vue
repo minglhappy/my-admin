@@ -38,6 +38,7 @@ interface ProTableProps {
 }
 
 const props = withDefaults(defineProps<ProTableProps>(), {
+  requestApi: undefined,
   pagination: true,
   selection: false,
   rowKey: 'id',
