@@ -8,6 +8,7 @@ import { useUserStore } from '@/stores/modules/user';
 import { useAuthStore } from '@/stores/modules/auth';
 import { initDynamicRouter } from './modules/dynamicRouter';
 import { useTabsStore } from '@/stores/modules/tabs';
+import { useKeepAliveStore } from '@/stores/modules/keepAlive';
 
 /** 路由模式：hash（#）或 history（无 #），从 .env 读取 */
 const routerMode = import.meta.env.VITE_ROUTER_MODE;
@@ -78,6 +79,11 @@ router.afterEach((to) => {
   if (to.path !== LOGIN_URL) {
     const tabsStore = useTabsStore();
     tabsStore.addTabs({ path: to.path, title: (to.meta.title as string) || '页面' });
+
+    //标记了 isKeepAlive的页面，等级进缓存名单
+    if (to.name && to.meta.isKeepAlive) {
+      useKeepAliveStore().addKeepAliveName(to.name as string);
+    }
   }
 });
 

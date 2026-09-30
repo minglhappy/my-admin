@@ -19,6 +19,8 @@ const testColumns = [
   { key: 'name', dataKey: 'name', title: '姓名', width: 150 },
 ];
 
+defineOptions({ name: 'VirtualTable' });
+
 /** 生成 10 万条模拟数据（性能对比用） */
 const bigData = Array.from({ length: 100000 }, (_, i) => ({
   id: i + 1,

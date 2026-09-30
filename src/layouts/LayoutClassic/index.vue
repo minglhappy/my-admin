@@ -11,6 +11,8 @@ import i18n from '@/languages';
 import { useI18n } from 'vue-i18n';
 import { useGlobalStore } from '@/stores/modules/global';
 
+import MenuTree from '@/layouts/components/MenuTree.vue';
+
 const { t } = useI18n();
 const globalStore = useGlobalStore();
 const switchLanguage = (lang: string) => {
@@ -50,9 +52,18 @@ const handleTabChange = (path: string) => {
   router.push(path);
 };
 
+// 自动展开当前菜单组--default-openeds 绑定当前路径的所有父级：
+// 当前路径的所有父级分组路径（用于自动展开）
+const openedMenus = computed(() => route.matched.filter((r) => r.meta?.title && r.path !== route.path).map((r) => r.path));
+
 /** 关闭标签页 */
 const handleTabRemove = (path: string) => {
   tabsStore.removeTabs(path);
+
+  // 标签关了，缓存也要一并清理，否则名单无限增长，内存，只进不出。
+  const name = router.resolve(path).name as string;
+  keepAliveStore.removeKeepAliveName(name);
+
   // 如果关闭的是当前页 → 跳到最后一个标签页
   if (path === route.path) {
     const last = tabsStore.tabsMenuList[tabsStore.tabsMenuList.length - 1];
@@ -80,13 +91,24 @@ const logout = () => {
     <!-- ── 左侧：Logo + 菜单 ── -->
     <el-aside class="layout-aside" :class="{ 'is-collapse': isCollapse }">
       <div class="logo">MyAdmin</div>
-      <el-menu :default-active="activeMenu" :collapse="isCollapse" :collapse-transition="false" background-color="#304156" text-color="#bfcbd9" active-text-color="#ffffff" @select="handleMenuClick">
-        <el-menu-item v-for="item in menuList" :key="item.path" :index="item.path">
+      <el-menu
+        :default-openeds="openedMenus"
+        :default-active="activeMenu"
+        :collapse="isCollapse"
+        :collapse-transition="false"
+        background-color="#304156"
+        text-color="#bfcbd9"
+        active-text-color="#ffffff"
+        @select="handleMenuClick"
+      >
+        <!-- <el-menu-item v-for="item in menuList" :key="item.path" :index="item.path">
           <el-icon><component :is="item.meta.icon || 'Menu'" /></el-icon>
           <template #title>
             {{ item.meta.title }}
           </template>
-        </el-menu-item>
+        </el-menu-item> -->
+
+        <MenuTree :menus="menuList" />
       </el-menu>
     </el-aside>
 
@@ -99,7 +121,10 @@ const logout = () => {
             <Fold v-else />
           </el-icon>
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item>{{ route.meta.title }}</el-breadcrumb-item>
+            <!-- <el-breadcrumb-item>{{ route.meta.title }}</el-breadcrumb-item> -->
+            <el-breadcrumb-item v-for="item in route.matched.filter((r) => r.meta?.title)" :key="item.path">
+              {{ item.meta.title }}
+            </el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <div class="header-right">
