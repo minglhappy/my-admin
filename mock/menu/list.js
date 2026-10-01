@@ -26,6 +26,7 @@ const mocks = [
             // { path: '/proTable/virtual', name: 'virtualTable', component: 'proTable/virtualTable', meta: { title: '虚拟滚动演示', icon: 'DataLine' } },
             // { path: '/proTable/formLinkage', name: 'formLinkage', component: 'proTable/formLinkage', meta: { title: '表单联动演示', icon: 'Connection' } },
             { path: '/upload', name: 'upload', component: 'upload/index', meta: { title: '分片上传演示', icon: 'Upload' } },
+            { path: '/dashboard', name: 'dashboard', component: 'dashboard/index', meta: { title: '数据可视化', icon: 'TrendCharts' } },
           ],
           msg: 'success',
         })
