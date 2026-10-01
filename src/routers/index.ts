@@ -96,4 +96,5 @@ export function resetRouter() {
   });
   authStore.setFlatMenuList([]);
   authStore.setAuthMenuList([]);
+  authStore.setAuthButtonList([]);
 }

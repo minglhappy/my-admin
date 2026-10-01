@@ -3,6 +3,7 @@ import type { RouteRecordRaw, RouteComponent } from 'vue-router';
 import { useAuthStore } from '@/stores/modules/auth';
 import type { Router } from 'vue-router';
 import { getMenuListApi } from '@/api/modules/menu';
+import { getAuthButtonsApi } from '@/api/modules/auth';
 
 const modules = import.meta.glob('@/views/**/**.vue');
 
@@ -57,12 +58,18 @@ export const dynamicRouter: RouteRecordRaw[] = [
  * 1. 调接口获取菜单列表
  * 2. 转换菜单为路由格式
  * 3. 通过 router.addRoute 动态注册
+ *  登录初始化：拿菜单+拿权限
  */
 export async function initDynamicRouter(router: Router) {
   const authStore = useAuthStore();
 
+  // 菜单-->动态路由
   const res = await getMenuListApi();
   const routes = transformMenuToRoute(res.data);
+
+  // 按钮权限码---> store
+  const btnRes = await getAuthButtonsApi();
+
   const addedRoutes: RouteRecordRaw[] = [];
   routes.forEach((route) => {
     if (route.name && !router.hasRoute(route.name as string)) {
@@ -79,6 +86,7 @@ export async function initDynamicRouter(router: Router) {
     });
   });
 
+  authStore.setAuthButtonList(btnRes.data ?? []);
   authStore.setAuthMenuList(res.data);
   authStore.setFlatMenuList(addedRoutes);
 

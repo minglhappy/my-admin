@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+// import { onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useOnline } from '@/hooks/useOnline';
 import { useTime } from '@/hooks/useTime';
-import { useAuthStore } from '@/stores/modules/auth';
+// import { useAuthStore } from '@/stores/modules/auth';
+import { useAuthButtons } from '@/hooks/useAuthButtons';
+const { authButtonList } = useAuthButtons();
 
 // 演示 v-auth：初始化权限列表（有 add 和 delete，没有 edit）
-const authStore = useAuthStore();
-onMounted(() => {
-  authStore.setAuthButtonList(['user:add', 'user:delete']);
-});
+// const authStore = useAuthStore();
+// onMounted(() => {
+//   authStore.setAuthButtonList(['user:add', 'user:delete']);
+// });
 
 // 演示 Hooks
 const { isOnline } = useOnline();
@@ -63,6 +65,9 @@ const handleLongpress = () => {
 
       <!-- v-draggable -->
       <div v-draggable class="drag-box">拖我移动</div>
+
+      <!-- 追加一行：当前权限码（来自登录时拉取的接口） -->
+      <p>当前按钮权限码： {{ authButtonList.join('、') || '(空)' }}</p>
     </el-card>
 
     <!-- v-waterMarker 包住整个页面 -->
