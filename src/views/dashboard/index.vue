@@ -1,18 +1,34 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
+// import { ref } from 'vue';
 import ECharts from '@/components/ECharts/index.vue';
 import { getDashboardDataApi } from '@/api/modules/dashboard';
-import { type DashboardData } from '@/api/modules/dashboard';
+// import { type DashboardData } from '@/api/modules/dashboard';
 
 import { type EChartsOption } from 'echarts';
 
-const dashboardData = ref<DashboardData>();
+import { usePolling } from '@/hooks/usePolling';
 
-const loadData = async () => {
-  const res = await getDashboardDataApi();
-  dashboardData.value = res.data;
-};
-loadData();
+const {
+  data: dashboardData,
+  loading,
+  isPolling,
+  lastUpdate,
+  start,
+  stop,
+  refresh,
+} = usePolling({
+  fetchFn: async () => (await getDashboardDataApi()).data,
+  interval: 10000,
+});
+
+start();
+// const dashboardData = ref<DashboardData>();
+// const loadData = async () => {
+//   const res = await getDashboardDataApi();
+//   dashboardData.value = res.data;
+// };
+// loadData();
 
 // ─── 三个 option：由接口数据组装（computed：数据到 → option 自动更新）───
 
@@ -58,6 +74,22 @@ const pieOption = computed<EChartsOption>(() => ({
 
 <template>
   <div class="page-container">
+    <!-- ★ 轮询控制区 -->
+    <el-card class="mb20">
+      <div class="flex-between">
+        <div>
+          最后更新：{{ lastUpdate?.toLocaleTimeString() || '--' }}
+          <el-tag :type="isPolling ? 'success' : 'info'" class="ml10">
+            {{ isPolling ? '轮询中（每 10 秒）' : '已暂停' }}
+          </el-tag>
+        </div>
+        <div>
+          <el-button :loading="loading" icon="Refresh" @click="refresh">立即刷新</el-button>
+          <el-button v-if="isPolling" icon="VideoPause" @click="stop">暂停</el-button>
+          <el-button v-else type="primary" icon="VideoPlay" @click="start">继续</el-button>
+        </div>
+      </div>
+    </el-card>
     <el-row :gutter="20">
       <el-col :span="12">
         <el-card><ECharts :options="lineOption" /></el-card>
@@ -77,5 +109,13 @@ const pieOption = computed<EChartsOption>(() => ({
 <style lang="scss" scoped>
 .mt20 {
   margin-top: 20px;
+}
+
+.mb20 {
+  margin-bottom: 20px;
+}
+
+.ml10 {
+  margin-left: 10px;
 }
 </style>
