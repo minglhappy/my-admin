@@ -3,7 +3,7 @@
 > 从 0 到 1 构建 Vue3 + TypeScript 后台管理系统（复刻 Geeker-Admin）的完整学习笔记
 > 学习模式：**你写 → AI 审 → 你改**（先尝试自己写代码，再由 AI review 纠错）
 > 开始时间：2026-08-05 ｜ 技术栈：Vue 3.5 + TypeScript + Vite + Pinia + Element Plus
-> 完成时间：2026-10-02 ｜ 12 阶段 + 6 进阶阶段 + 50 个踩坑记录，项目已构建部署验证
+> 完成时间：2026-10-03 ｜ 12 阶段 + 7 进阶阶段 + 57 个踩坑记录，前后端联调验证通过
 
 ---
 
@@ -886,6 +886,66 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 **解法**：`import { getDashboardDataApi, type DashboardData } from ...`
 **规则**：用到的类型和值一样要显式导入——TS 不会自动帮你找类型。
 
+### 坑 51：PowerShell 里 curl 的引号与别名
+
+**报错**：`curl: (3) URL rejected` / 后端收到坏 JSON（code 400）
+**原因**：PowerShell 双引号里 `\"` 不是转义（反斜杠是字面量）；`curl` 可能是 Invoke-WebRequest 的别名
+**解法**：JSON 用单引号 `-d '{"username":"admin"}'`；用 `curl.exe` 强制真 curl
+**规则**：PowerShell 单引号=纯字面量，双引号=会做变量插值。
+
+### 坑 52：旧 token 与新后端冲突（401 → 白屏）
+
+**现象**：切真实后端后，刷新提示"登录已过期"然后白屏
+**原因**：localStorage 里的 mock 时代 token 不是 Go 签发的 JWT → 验签失败 401 → initDynamicRouter 抛错 → 守卫失败 → 白屏
+**解法**：清 localStorage 重新登录；**长期修复**：守卫给 initDynamicRouter 加 try/catch——初始化失败时清登录态优雅回登录页（初始化路径必须容错）。
+
+### 坑 53：axios 拦截器还在读不存在的 localStorage 键（mock 掩盖的第三例）
+
+**现象**：登录成功但紧接着"登录已过期"、不跳转
+**根因**：阶段 7 切 Pinia 持久化（键="user"）时，守卫改了、**axios 拦截器漏改**——还在读 `localStorage.getItem("token")`（这个键从未存在）→ 请求头永远带空 token → 真后端 401
+**解法**：拦截器改读 `useUserStore().token`
+**教训**：改存储方案时全局搜旧键名；mock 不校验 token 所以此 bug 潜伏至今。
+
+### 坑 54：后端漏实现接口（404）
+
+**现象**：数据可视化页面提示"您访问的资源不存在"
+**根因**：前端有 6 组接口，后端只实现了 4 组（dashboard/upload 漏了）→ gin 默认 404
+**解法**：补齐接口
+**习惯**：联调前做"接口清单对照表"——前端 api/modules 的每个函数 URL 逐行对照后端路由表。
+
+### 坑 55：Go 嵌套 gin.H 括号层级错位
+
+**报错**：`unexpected ) in composite literal` / `unexpected EOF, expected }`
+**原因**：多层嵌套 JSON（gin.H 套 gin.H）闭括号放错位置——字段被甩到函数调用外；替换代码时又把函数闭括号弄丢
+**解法**：逐层缩进 + VS Code Go 插件括号高亮；"unexpected EOF" = 有开括号到文件尾没闭合，查最后编辑的函数结尾。
+
+### 坑 56：CORS 白名单写错地址（Network Error）
+
+**现象**：后端正常、curl 正常，浏览器登录报"网络错误"
+**根因**：白名单里放的是**后端自己的地址**（localhost:3000）；Origin 头是"来访者"前端地址（localhost:8848）→ 白名单未命中 → 响应无 Allow-Origin → 浏览器拦截 → axios 报 Network Error
+**解法**：白名单放前端地址
+**排查套路**：F12 看 OPTIONS 预检响应头有没有 Access-Control-Allow-Origin——没有 = 白名单未命中。
+
+### 坑 57：commit message 全角冒号
+
+**报错**：`subject may not be empty / type may not be empty`
+**原因**：`feat：xxx` 用了中文全角冒号，commitlint 按半角 `:` 切分失败
+**解法**：半角 `feat: xxx`（坑 41 的提交消息版）
+**根治**：写命令前切英文输入法。
+
+---
+
+## 前后端联调经验表（进阶 7 核心产出）
+
+| 现象             | 第一反应（错的）      | 实际根因                     | 定位方法              |
+| ---------------- | --------------------- | ---------------------------- | --------------------- |
+| 网络错误         | 后端挂了              | CORS 白名单未命中            | 看 OPTIONS 预检响应头 |
+| 登录已过期+白屏  | 后端 token 校验有问题 | 前端压根没发 token           | 看 Network 请求头     |
+| 资源不存在       | 页面路由问题          | 后端漏实现接口               | 接口清单对照表        |
+| 登录成功但被踢回 | token 过期            | 旧 mock token 与新后端不兼容 | 清 localStorage 重登  |
+
+**联调第一原则**：先二分——后端单独用 curl 可验证（排除前端），前端看 Network 请求是否发出（排除后端）。永远用证据（Network 面板）代替猜测。
+
 ---
 
 ## 核心机制深度问答
@@ -984,10 +1044,11 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 | 4   | 按钮权限闭环            | 权限码命名（模块:操作）；登录初始化一次拿齐菜单+权限；resetRouter 三层清理；后端改权限前端不发版                                                             |
 | 5   | ECharts 数据可视化      | option 驱动模型；init/setOption/resize/dispose 生命周期四件套；computed 把数据翻译成配置                                                                     |
 | 6   | 轮询自动刷新            | usePolling hook；请求序号防竞态；visibilitychange 切后台暂停；options 对象参数设计                                                                           |
+| 7   | Go + gin 真实后端联调   | gin 三件套（Context/ShouldBindJSON/JSON）；JWT 签发与校验；CORS 白名单（Origin 是来访者地址）；Go map 并发锁；联调"谁的问题"二分法                           |
 
-### 进阶期间踩坑速览（坑 39-50，详见踩坑记录）
+### 进阶期间踩坑速览（坑 39-57，详见踩坑记录）
 
-YAML 缩进、全角标点、CI 兜底价值、递归组件导入路径、keep-alive 三名字一致、判别联合分支构造、Buttion 笔误致全站白屏、默认插槽不渲染、转译 vs 类型检查、computed 字面量拓宽。
+YAML 缩进、全角标点、CI 兜底价值、递归组件导入路径、keep-alive 三名字一致、判别联合分支构造、Buttion 笔误致全站白屏、默认插槽不渲染、转译 vs 类型检查、computed 字面量拓宽、PowerShell curl 引号、旧 token 冲突、拦截器漏改读 store、后端漏接口、Go 括号层级、CORS 白名单地址、commit 全角冒号。
 
 ### 长期方向（按优先级）
 
@@ -1022,4 +1083,4 @@ localStorage.removeItem("user")  # 模拟退出
 
 ---
 
-_文档更新时间：2026-10-02 ｜ 项目路径：F:\frontend-program\vue\my-admin_
+_文档更新时间：2026-10-03 ｜ 项目路径：F:\frontend-program\vue\my-admin_
