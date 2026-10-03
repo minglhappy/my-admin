@@ -6,6 +6,7 @@ import { ResultEnum } from '@/enums/httpEnum';
 import { checkStatus } from './helper/checkStatus';
 import { AxiosCanceler } from './helper/axiosCancel';
 import type { ResultData } from '@/api/interface';
+import { useUserStore } from '@/stores/modules/user';
 
 // ─── 类型扩展：给 Axios 配置加上自定义字段 ───
 export interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
@@ -35,10 +36,10 @@ class RequestHttp {
         config.loading ??= true;
         // config.loading && showFullScreenLoading();  // 后面阶段再加
 
-        // 3. 注入 token
-        const token = localStorage.getItem('token') || '';
+        // 3. 注入 token（从 Pinia store 读——持久化插件存的是 "user" 键，不是 "token"）
+        const userStore = useUserStore();
         if (config.headers && typeof config.headers.set === 'function') {
-          config.headers.set('x-access-token', token);
+          config.headers.set('x-access-token', userStore.token);
         }
         return config;
       },
@@ -121,7 +122,7 @@ class RequestHttp {
 const http = new RequestHttp({
   baseURL: import.meta.env.VITE_API_URL as string,
   timeout: ResultEnum.TIMEOUT,
-  withCredentials: true, // 跨域请求携带 cookie
+  withCredentials: false, // 跨域请求携带 cookie
 });
 
 export default http;

@@ -3,7 +3,7 @@
 > 从 0 到 1 构建 Vue3 + TypeScript 后台管理系统（复刻 Geeker-Admin）的完整学习笔记
 > 学习模式：**你写 → AI 审 → 你改**（先尝试自己写代码，再由 AI review 纠错）
 > 开始时间：2026-08-05 ｜ 技术栈：Vue 3.5 + TypeScript + Vite + Pinia + Element Plus
-> 完成时间：2026-09-20 ｜ 共 12 阶段 + 30 个踩坑记录，项目已构建部署验证
+> 完成时间：2026-10-02 ｜ 12 阶段 + 6 进阶阶段 + 50 个踩坑记录，项目已构建部署验证
 
 ---
 
@@ -103,6 +103,12 @@ my-admin/
 | 3    | feat: 阶段10 完成自定义指令与Hooks开发                                   |
 | 4    | feat: 阶段11 完成国际化与Mock数据及完整动态路由体系                      |
 | 5    | feat: 阶段12 完成构建优化与部署配置                                      |
+| 6    | feat: ProTable增强（虚拟滚动/表单联动/分片上传+断点续传）                |
+| 7    | test: 为useChunkUpload添加单元测试（含若干 fix/ci 提交）                 |
+| 8    | feat: 多级菜单与页面缓存（KeepAlive）落地                                |
+| 9    | feat: 按钮权限闭环（mock权限接口+v-auth全量挂载）                        |
+| 10   | feat: ECharts数据可视化（封装图表组件+dashboard仪表盘）                  |
+| 11   | feat: 轮询自动刷新（usePolling hook+实时看板）                           |
 
 ---
 
@@ -805,6 +811,81 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 **解法**：进度用例设 `concurrency: 1`（一个用例只测一个变量；并发由专门用例测）
 **铁律**：异步测试的时序必须确定——隔离变量是测试设计的核心动作。
 
+### 坑 39：GitHub Actions 报 yaml 语法错误
+
+**原因**：YAML 用缩进表达层级，顶层键（`on:`、`jobs:`）被缩进了 2 空格 → 解析器认为它们是"上一层的子项"
+**解法**：顶层键顶格（第 0 列），子项保持相对缩进
+**铁律**：YAML 和 Python 一样"缩进即语法"；用 VS Code + YAML 插件即时校验。
+
+### 坑 40：CI 抓到本地漏掉的 5 个类型错误
+
+**案例**：checkApi 返回类型过时（ResultData 包装）、signal 参数未同步到接口类型、未使用变量、requestApi 缺默认值
+**原因**：本地 `vue-tsc -b` 是增量模式且"忘了跑"；CI 每次全新虚拟机全量检查
+**教训**：CI 从不相信"本地跑过"——这是它存在的意义。
+
+### 坑 41：中文输入法全角标点（：，等）
+
+**报错**：`SyntaxError: Invalid or unexpected token`
+**原因**：中文输入法下打的冒号/逗号/括号是全角字符，JS 引擎不认，肉眼几乎无法分辨
+**预防**：写代码时切英文输入法；VS Code 装全角字符检测插件。
+
+### 坑 42：递归组件导入路径错误
+
+**报错**：`Failed to resolve import "./components/MenuTree.vue"`
+**原因**：`./components` 相对**当前文件目录**（LayoutClassic/）解析，而文件建在 layouts/components/
+**解法**：`@/layouts/components/MenuTree.vue`（别名从 src 出发）或 `../components/`（上跳一级）
+**规则**：`./` 当前目录、`../` 上一级、`@/` 从 src 出发。
+
+### 坑 43：keep-alive 缓存不生效
+
+**排查链**：① mock 菜单没加 isKeepAlive 标记（afterEach 的 if 永远 false）② 组件 name 与缓存名单不一致
+**解法**：菜单 meta 加 `isKeepAlive: true` + 组件 `defineOptions({ name })` + 缓存名单存 `to.name`——**三处名字必须一致**
+**验证**：改完关键配置先 grep 确认改动真实存在，再谈下一步。
+
+### 坑 44：RouteRecordRaw 判别联合类型错误
+
+**过程**：条件展开 `...(cond ? {x} : {})` 产出"可选字段"（x?: T）→ 判别联合无法判别 → 报错
+**解法**：**分支构造**——每个 if 分支返回形状确定的对象，精确匹配某一变体
+**铁律**：判别联合的判别依据是字段**存在性**；"按条件拼字段"与它相克，"按分支造对象"与它相容。
+
+### 坑 45：RawRouteComponent 类型不存在
+
+**报错**：`'"vue-router"' has no exported member named 'RawRouteComponent'. Did you mean 'RouteComponent'?`
+**解法**：用 `RouteComponent`
+**经验**：TS 的 "Did you mean" 提示经常直接给出答案。
+
+### 坑 46：拼写错误致全站白屏（最高危的一类）
+
+**报错**：`ReferenceError: getAuthButtionsApi is not defined`
+**因果链**：拼错 → initDynamicRouter 抛出 → 守卫失败 → **所有导航中止 → 连静态首页都白屏**
+**教训**：① 挂在"初始化路径"上的代码单点失败 = 全局瘫痪（真实项目要 try/catch 兜底）② Button→Buttion 笔误出现两次——提交前全局搜索自查拼写模式。
+
+### 坑 47：ProTable 默认插槽不渲染
+
+**现象**：放在 `<ProTable>` 内部的工具栏 div 永远不显示
+**原因**：ProTable 模板里没有 `<slot />`（只有 #column-xxx 和 #operation 具名插槽）——默认插槽内容被丢弃
+**解法**：工具栏放组件外面
+**规则**：用别人的组件前，先确认它渲染哪些插槽。
+
+### 坑 48：dev 能跑、build 报错（转译 vs 类型检查）
+
+**原理**：dev 的 esbuild 只**转译**（剥类型注解，不验证）；build 的 vue-tsc 做**全量类型检查**
+**推论**：类型错误是"编译期影子世界"的问题——剥掉注解的 JS 能跑，不代表类型正确
+**行动**：开发靠 IDE 红波浪线，提交前 `pnpm build:pro`，推送后 CI 兜底。
+
+### 坑 49：computed 字面量类型拓宽
+
+**报错**：`Type 'string' is not assignable to type '"category"'`
+**原因**：`computed(() => ({ type: 'category' }))` 无泛型注解 → 返回类型被推断 → 字面量拓宽成 string
+**解法**：`computed<EChartsOption>(() => ({...}))`——泛型提供**上下文类型**，字面量保持窄类型。
+
+### 坑 50：类型接口漏导入
+
+**报错**：`Cannot find name 'DashboardData'`
+**原因**：`import { getDashboardDataApi }` 只导了函数，接口类型忘导
+**解法**：`import { getDashboardDataApi, type DashboardData } from ...`
+**规则**：用到的类型和值一样要显式导入——TS 不会自动帮你找类型。
+
 ---
 
 ## 核心机制深度问答
@@ -893,13 +974,20 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 | 断点续传 | check 接口问进度；待传列表游标；进度从已有片数起步                                |
 | 主动终止 | AbortController 一对多广播；flag 管排队 + signal 管在飞；粒度决定 controller 数量 |
 
-### 进阶路线（进行中）
+### 进阶路线（全部完成）
 
-1. ✅ **进阶 1：单元测试（Vitest）**——useChunkUpload 6 用例（切片/进度/续传/终止/并发/过程快照）；断言粒度与异步时序两条铁律
-2. ⏳ **进阶 2：CI/CD**——GitHub Actions 自动 lint + test + build
-3. **进阶 3：多级菜单与页面缓存**——el-sub-menu 递归组件 + KeepAlive 落地
-4. **进阶 4：按钮权限闭环**——mock 权限接口 + 登录后拉取 + v-auth 全量挂载
-5. **进阶 5：ECharts 数据可视化**——dashboard 折线/柱状/饼图 + resize 自适应
+| #   | 阶段                    | 核心知识点                                                                                                                                                   |
+| --- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | 单元测试（Vitest）      | AAA 模式；vi.fn/mockResolvedValue/mockImplementation；断言粒度三档；异步时序确定性（并发变量隔离）                                                           |
+| 2   | CI/CD（GitHub Actions） | workflow/job/step 三级结构；push 触发器；pnpm 缓存；--frozen-lockfile；本地增量漏检由 CI 全量兜底                                                            |
+| 3   | 多级菜单与页面缓存      | 递归组件（自渲染+出口条件）；pass-through 无组件路由；route.matched 多级面包屑；keep-alive include 按组件 name 匹配（路由 name/缓存名单/组件 name 三处一致） |
+| 4   | 按钮权限闭环            | 权限码命名（模块:操作）；登录初始化一次拿齐菜单+权限；resetRouter 三层清理；后端改权限前端不发版                                                             |
+| 5   | ECharts 数据可视化      | option 驱动模型；init/setOption/resize/dispose 生命周期四件套；computed 把数据翻译成配置                                                                     |
+| 6   | 轮询自动刷新            | usePolling hook；请求序号防竞态；visibilitychange 切后台暂停；options 对象参数设计                                                                           |
+
+### 进阶期间踩坑速览（坑 39-50，详见踩坑记录）
+
+YAML 缩进、全角标点、CI 兜底价值、递归组件导入路径、keep-alive 三名字一致、判别联合分支构造、Buttion 笔误致全站白屏、默认插槽不渲染、转译 vs 类型检查、computed 字面量拓宽。
 
 ### 长期方向（按优先级）
 
@@ -934,4 +1022,4 @@ localStorage.removeItem("user")  # 模拟退出
 
 ---
 
-_文档更新时间：2026-09-29 ｜ 项目路径：F:\frontend-program\vue\my-admin_
+_文档更新时间：2026-10-02 ｜ 项目路径：F:\frontend-program\vue\my-admin_
