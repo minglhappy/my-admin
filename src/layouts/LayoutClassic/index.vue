@@ -170,7 +170,7 @@ const logout = () => {
       </el-main>
 
       <!-- ── 页脚 ── -->
-      <el-footer class="layout-footer"> © 2026 MyAdmin pro </el-footer>
+      <el-footer class="layout-footer"> © 2026 MyAdmin rename分支版本</el-footer>
     </el-container>
   </el-container>
 </template>
