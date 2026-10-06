@@ -3,7 +3,7 @@
 > 从 0 到 1 构建 Vue3 + TypeScript 后台管理系统（复刻 Geeker-Admin）的完整学习笔记
 > 学习模式：**你写 → AI 审 → 你改**（先尝试自己写代码，再由 AI review 纠错）
 > 开始时间：2026-08-05 ｜ 技术栈：Vue 3.5 + TypeScript + Vite + Pinia + Element Plus
-> 完成时间：2026-10-03 ｜ 12 阶段 + 7 进阶阶段 + 57 个踩坑记录，前后端联调验证通过
+> 完成时间：2026-10-04 ｜ 12 阶段 + 8 进阶阶段 + 60 个踩坑记录，前后端联调验证通过
 
 ---
 
@@ -933,6 +933,27 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 **解法**：半角 `feat: xxx`（坑 41 的提交消息版）
 **根治**：写命令前切英文输入法。
 
+### 坑 58：commit message 冒号后缺空格（同坑第三形态）
+
+**报错**：`subject may not be empty / type may not be empty`
+**原因**：`fix:页脚文案`——半角冒号但**冒号后没空格**，commitlint 按 `type: subject`（冒号+空格）切分失败
+**解法**：`fix: 页脚文案`（半角冒号 + 一个空格，两个条件缺一不可）
+**根治**：三次踩同一坑——固定模板肌肉记忆：`type` + `:` + `空格` + `subject`。
+
+### 坑 59：git 命令跑错目录（多仓库时代第一坑）
+
+**现象**：`nothing to commit, working tree clean`（明明改了文件）
+**原因**：前后端两个仓库并存，在后端目录（my-admin-server）里提交前端的改动
+**解法**：执行 git 命令前先看路径提示符
+**习惯**：多仓库开发时，"在哪个目录"是 git 的第一个上下文。
+
+### 坑 60：Fast-forward 无冲突（制造冲突的顺序错误）
+
+**现象**：merge 输出 Fast-forward，没有出现冲突
+**原理**：冲突的前提是"分叉"——两个分支各自有对方没有的提交。先改 master 再开分支 → 分支起点在 master 改动之后 → master 原地不动 → 历史是直线 → 快进
+**解法**：冲突公式——**先分叉，后各自改**：① 先开分支 ② 分支改一行提交 ③ master 改同一行提交 ④ merge → 必然冲突
+**工具**：`git log --oneline --graph` 看历史形状（直线=快进，分叉=有 merge/冲突）。
+
 ---
 
 ## 前后端联调经验表（进阶 7 核心产出）
@@ -1007,6 +1028,20 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 
 断言粒度决定测试质量：**终值断言**抓不住过程 bug（`progress=100` 的兜底赋值会掩盖中间错误）；**过程快照断言**才能抓住。写测试先问"错误以什么形式出现？断言看得见吗？"另外异步测试的时序必须确定——并发变量要用专门用例测、进度变量要降并发隔离。
 
+### Q10：冲突是怎么产生的？如何刻意制造冲突？
+
+**本质**：分叉点之后，两个分支**改了同一行**——git 无法自动判断谁对，停下来让你选。冲突不是错误，是 git 在请求你决策。
+
+**制造公式（先分叉，后各自改）**：① 先开分支（记住现状）② 分支改一行提交 ③ master 改同一行提交 ④ merge → 必然冲突。
+
+**三种合并形态对照**：
+
+| 形态         | 条件                           | 结果                                |
+| ------------ | ------------------------------ | ----------------------------------- |
+| Fast-forward | master 在分叉后没动            | 指针前移，历史直线                  |
+| Merge commit | 两边各有新提交但改的文件不重叠 | 自动合并 + 生成合并提交             |
+| 冲突         | 两边改了同一行                 | git 停下，插入 `<<<<<<<` 标记等你选 |
+
 ---
 
 ## 项目收官与进阶建议
@@ -1045,6 +1080,7 @@ created → beforeMount → mounted(★最常用) → beforeUpdate → updated
 | 5   | ECharts 数据可视化      | option 驱动模型；init/setOption/resize/dispose 生命周期四件套；computed 把数据翻译成配置                                                                     |
 | 6   | 轮询自动刷新            | usePolling hook；请求序号防竞态；visibilitychange 切后台暂停；options 对象参数设计                                                                           |
 | 7   | Go + gin 真实后端联调   | gin 三件套（Context/ShouldBindJSON/JSON）；JWT 签发与校验；CORS 白名单（Origin 是来访者地址）；Go map 并发锁；联调"谁的问题"二分法                           |
+| 8   | Git 协作流              | feature 分支 + PR 全流程；review 视角切换；冲突=选择题；先分叉后各自改；fast-forward/merge commit/冲突三种形态                                               |
 
 ### 进阶期间踩坑速览（坑 39-57，详见踩坑记录）
 
@@ -1083,4 +1119,4 @@ localStorage.removeItem("user")  # 模拟退出
 
 ---
 
-_文档更新时间：2026-10-03 ｜ 项目路径：F:\frontend-program\vue\my-admin_
+_文档更新时间：2026-10-04 ｜ 项目路径：F:\frontend-program\vue\my-admin_
